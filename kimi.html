@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kimi Tool – Chat Widget (Single File)</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121833;
+      --muted: #7d89b0;
+      --text: #eaf0ff;
+      --accent: #6aa8ff;
+      --accent-2: #9ef6d0;
+      --danger: #ff6a7a;
+      --radius: 16px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: radial-gradient(1200px 800px at 80% -10%, #233 0%, #0b1020 40%), var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial;
+      color: var(--text);
+      min-height: 100dvh;
+      display: grid; place-items: center; padding: 24px;
+    }
+    .container {
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px){ .container { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .sidebar { padding: 18px; }
+    .brand {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    }
+    .badge {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      color: #0a0f1a; font-weight: 700; padding: 8px 12px; border-radius: 999px; font-size: 12px;
+      box-shadow: 0 6px 20px rgba(106,168,255,.35);
+    }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .row { display: flex; gap: 8px; margin-top: 10px; }
+    .row > * { flex: 1; }
+    .input, .select, .btn {
+      background: #0f1530; border: 1px solid #202a54; color: var(--text);
+      padding: 10px 12px; border-radius: 12px; font-size: 14px;
+    }
+    .btn { cursor: pointer; user-select: none; transition: .15s ease; text-align: center; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.35); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; box-shadow: none; transform:none; }
+
+    .chat {
+      display: grid; grid-template-rows: auto 1fr auto; height: min(80dvh, 760px);
+    }
+    .chat-header { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .chip { color: var(--muted); font-size: 12px; border:1px solid rgba(255,255,255,.1); padding: 6px 10px; border-radius: 999px; }
+
+    .messages { overflow: auto; padding: 18px; scroll-behavior: smooth; }
+    .msg {
+      max-width: 85%; padding: 12px 14px; margin: 8px 0; border-radius: 14px; line-height: 1.35; white-space: pre-wrap;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .msg.user { margin-left: auto; background: #17214a; }
+    .msg.bot { background: #0f1530; }
+    .msg.system { background: #1a233f; color: var(--muted); font-style: italic; }
+
+    .composer { padding: 12px; border-top: 1px solid rgba(255,255,255,.08); display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .composer textarea {
+      resize: none; height: 48px; border-radius: 12px; border: 1px solid #202a54; background: #0f1530; color: var(--text); padding: 12px; font-size: 14px;
+    }
+
+    .pill {
+      display:inline-flex; align-items:center; gap:8px; padding: 8px 10px; border-radius: 999px; border:1px dashed rgba(255,255,255,.12); color: var(--muted); font-size: 12px; margin-top: 8px;
+    }
+    .danger { color: var(--danger); }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left: Controls -->
+    <aside class="panel sidebar">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 2l7 4v6c0 5-3.5 7.5-7 10-3.5-2.5-7-5-7-10V6l7-4z" stroke="url(#g)" stroke-width="1.4"/>
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="24" y2="24">
+              <stop stop-color="var(--accent)"/>
+              <stop offset="1" stop-color="var(--accent-2)"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <div style="font-weight:800; letter-spacing:.2px">Kimi Tool</div>
+          <div class="hint">Drop-in HTML chat widget. Plug into your Kimi API.</div>
+        </div>
+      </div>
+
+      <label class="hint">API Base URL</label>
+      <input id="apiBase" class="input" placeholder="https://api.kimi.com/v1/chat" />
+
+      <div class="row">
+        <div>
+          <label class="hint">API Key</label>
+          <input id="apiKey" class="input" placeholder="sk-..." />
+        </div>
+        <div>
+          <label class="hint">Model</label>
+          <input id="model" class="input" placeholder="kimi-chat" value="kimi-chat" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button id="saveBtn" class="btn">Save Settings</button>
+        <button id="clearBtn" class="btn" title="Clears local chat only">Clear Chat</button>
+      </div>
+
+      <div class="pill" title="Messages are stored in your browser only">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.6"/></svg>
+        Local only – no server
+      </div>
+
+      <div class="pill danger">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 7v6m0 4h.01" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
+        Replace the API URL, key and payload to match Kimi's docs.
+      </div>
+    </aside>
+
+    <!-- Right: Chat -->
+    <main class="panel chat">
+      <div class="chat-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="chip" id="status">Disconnected</div>
+          <div class="chip" id="modelChip">model: kimi-chat</div>
+        </div>
+        <button id="exportBtn" class="btn">Export .json</button>
+      </div>
+      <div id="messages" class="messages"></div>
+      <div class="composer">
+        <label class="sr-only" for="prompt">Your message</label>
+        <textarea id="prompt" placeholder="Ask anything… (Shift+Enter for newline)"></textarea>
+        <button id="sendBtn" class="btn">Send ⏎</button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // ---- Simple local state & helpers ----
+    const el = (id) => document.getElementById(id);
+    const LS = {
+      get k(){ try { return JSON.parse(localStorage.getItem('kimi.settings')||'{}'); } catch { return {}; }},
+      set k(v){ localStorage.setItem('kimi.settings', JSON.stringify(v)); },
+      get chat(){ try { return JSON.parse(localStorage.getItem('kimi.chat')||'[]'); } catch { return []; }},
+      set chat(v){ localStorage.setItem('kimi.chat', JSON.stringify(v)); }
+    };
+
+    const state = {
+      apiBase: '', apiKey: '', model: 'kimi-chat',
+      messages: []
+    };
+
+    function hydrate() {
+      const s = LS.k; state.apiBase = s.apiBase || ''; state.apiKey = s.apiKey || ''; state.model = s.model || 'kimi-chat';
+      el('apiBase').value = state.apiBase; el('apiKey').value = state.apiKey; el('model').value = state.model;
+      state.messages = LS.chat;
+      renderAll();
+    }
+
+    function persist() {
+      LS.k = { apiBase: state.apiBase, apiKey: state.apiKey, model: state.model };
+      LS.chat = state.messages;
+    }
+
+    function setStatus(text){ el('status').textContent = text; }
+
+    function renderAll(){
+      el('modelChip').textContent = `model: ${state.model||'—'}`;
+      const wrap = el('messages'); wrap.innerHTML='';
+      for(const m of state.messages){
+        const d = document.createElement('div');
+        d.className = `msg ${m.role}`; d.textContent = m.content;
+        wrap.appendChild(d);
+      }
+      wrap.scrollTop = wrap.scrollHeight;
+      setStatus(state.apiBase && state.apiKey ? 'Ready' : 'Disconnected');
+    }
+
+    function pushMessage(role, content){
+      state.messages.push({ role, content });
+      persist(); renderAll();
+    }
+
+    function systemIntro(){
+      if (state.messages.length) return;
+      pushMessage('system', 'Welcome to Kimi Tool. Configure your API settings on the left, then ask a question.');
+    }
+
+    function exportJSON(){
+      const blob = new Blob([JSON.stringify({ model: state.model, messages: state.messages }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kimi-chat-${new Date().toISOString().slice(0,19)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    // ---- Replace this with Kimi's actual API contract ----
+    async function callKimiChat(messages){
+      // This is a generic OpenAI-style example. Adjust path/body/headers per Kimi docs.
+      const res = await fetch(state.apiBase, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.apiKey}`
+        },
+        body: JSON.stringify({
+          model: state.model,
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          temperature: 0.8
+        })
+      });
+      if(!res.ok){
+        const t = await res.text();
+        throw new Error(`API ${res.status}: ${t}`);
+      }
+      const data = await res.json();
+      // Expecting OpenAI-like { choices:[{ message:{ role:'assistant', content:'...' } }] }
+      const reply = data.choices?.[0]?.message?.content || data.output || data.reply || '';
+      return reply;
+    }
+
+    async function onSend(){
+      const ta = el('prompt');
+      const content = ta.value.trim();
+      if(!content) return;
+      if(!state.apiBase || !state.apiKey){
+        alert('Please set API Base URL and API Key in the left panel.');
+        return;
+      }
+      ta.value = '';
+      pushMessage('user', content);
+
+      const placeholderIdx = state.messages.length; // position after user push
+      pushMessage('bot', '…');
+      setStatus('Thinking…');
+      try {
+        const reply = await callKimiChat(state.messages.filter(m => m.role !== 'system'));
+        state.messages[placeholderIdx] = { role: 'bot', content: reply || '(empty response)' };
+        persist(); renderAll(); setStatus('Ready');
+      } catch (err){
+        state.messages[placeholderIdx] = { role: 'bot', content: `Error: ${err.message}` };
+        persist(); renderAll(); setStatus('Error');
+      }
+    }
+
+    // ---- Events ----
+    el('saveBtn').addEventListener('click', () => {
+      state.apiBase = el('apiBase').value.trim();
+      state.apiKey = el('apiKey').value.trim();
+      state.model = el('model').value.trim() || 'kimi-chat';
+      persist(); renderAll();
+    });
+
+    el('clearBtn').addEventListener('click', () => {
+      if(confirm('Clear chat history in this browser?')){
+        state.messages = []; persist(); renderAll(); systemIntro();
+      }
+    });
+
+    el('exportBtn').addEventListener('click', exportJSON);
+    el('sendBtn').addEventListener('click', onSend);
+    el('prompt').addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); onSend(); }
+    });
+
+    // ---- boot ----
+    hydrate(); systemIntro();
+  </script>
+</body>
+</html>
